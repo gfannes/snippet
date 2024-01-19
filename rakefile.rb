@@ -98,6 +98,6 @@ end
 
 desc('Clean')
 task :clean do
-    rm_f(FileList.new("*.exe"))
+    rm_f(FileList.new("**/*.exe"))
 end
 
