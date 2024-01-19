@@ -1,6 +1,9 @@
 my = Class.new() do
     def initialize()
         @here = Dir.pwd()
+
+        # We recreate '.clangd' each time: it contains the absolute path to @here
+        create_clangd_()
     end
 
     def build(src_fn, settings)
@@ -38,6 +41,46 @@ my = Class.new() do
 
     def filenames(filter: nil, ext: )
         FileList.new(File.join(@here, "*#{filter}*.#{ext}")).to_a()
+    end
+
+    private
+    def create_clangd_()
+        File.open('.clangd', 'w') do |fo|
+            fo.puts <<~EOS
+Style:
+    IncludeDelimiter: AlwaysBrackets
+CompileFlags:
+    Add: [-I#{@here}]
+
+---
+
+If:
+	PathMatch: [.*\.hpp]
+CompileFlags:
+	Add: [-xc++, -std=c++20, -DUTIL_LOG=0, -DL]
+
+---
+
+If:
+	PathMatch: [.*\.cpp]
+CompileFlags:
+	Add: [-xc++, -std=c++20]
+
+---
+
+If:
+	PathMatch: [.*\.h]
+CompileFlags:
+	Add: [-xc, -std=c17]
+
+---
+
+If:
+	PathMatch: [.*\.c]
+CompileFlags:
+	Add: [-xc, -std=c17]
+            EOS
+        end
     end
 end.new()
 
