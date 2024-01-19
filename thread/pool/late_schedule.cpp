@@ -1,69 +1,14 @@
-#define UTIL_LOG 1
+#define UTIL_LOG 0
 #include <util/log.hpp>
+#include <util/Stopwatch.hpp>
 
-#include <algorithm>
-#include <bit>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <functional>
-#include <iomanip>
-#include <iostream>
-#include <list>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <type_traits>
-#include <typeinfo>
-#include <utility>
-#include <vector>
-
-using Mutex = std::mutex;
-using Lock = std::unique_lock<Mutex>;
-
-using Job = std::function<void()>;
-using Jobs = std::vector<Job>;
-
-void burn(std::size_t difficulty)
-{
-    volatile float sum = 0;
-    for (auto i = 0; i < difficulty; ++i)
-        sum += std::sin(i);
-}
-
-class Scheduler
-{
-public:
-    Scheduler(std::size_t job_count, std::size_t schedule_count, std::size_t difficulty, std::size_t schedule_cost)
-        : job_count_(job_count), schedule_count_(schedule_count), difficulty_(difficulty), schedule_cost_(schedule_cost) {}
-
-    bool done() const { return schedule_count_ == 0; }
-
-    void operator()(Jobs &jobs)
-    {
-        if (!done())
-        {
-            L("Scheduler.call() " << schedule_count_);
-            burn(schedule_cost_ * difficulty_);
-
-            for (auto i = 0; i < job_count_; ++i)
-                jobs.emplace_back([&]() { burn(difficulty_); });
-
-            --schedule_count_;
-        }
-    }
-
-private:
-    const std::size_t job_count_;
-    const std::size_t difficulty_;
-    const std::size_t schedule_cost_;
-    std::size_t schedule_count_;
-};
+#include <thread/pool/common.hpp>
+#include <thread/pool/Scheduler.hpp>
 
 class Pool
 {
 public:
-    Pool(std::size_t thread_count, Scheduler &scheduler)
+    Pool(Size thread_count, Scheduler &scheduler)
         : scheduler_(scheduler)
     {
         for (auto i = 0; i < thread_count; ++i)
@@ -78,7 +23,7 @@ public:
 
     void operator()()
     {
-        const std::size_t threshold = (threads_.size() == 1 ? 0 : 1 * threads_.size());
+        const Size threshold = (threads_.size() == 1 ? 0 : 1 * threads_.size());
 
         while (!quit_)
         {
@@ -163,59 +108,43 @@ private:
     std::vector<std::thread> threads_;
 };
 
-class Duration
-{
-public:
-    Duration() { start(); }
-
-    void start() { start_ = Clock::now(); }
-
-    double stop() const
-    {
-        return std::chrono::duration_cast<std::chrono::duration<double>>(Clock::now() - start_).count();
-    }
-
-private:
-    using Clock = std::chrono::steady_clock;
-    Clock::time_point start_;
-};
-
 int main()
 {
-    const std::size_t job_count = 32;
-    const std::size_t schedule_count = 3000;
-    const std::size_t difficulty = 1000;
-    const std::size_t schedule_cost = 1;
+    const Size job_count = 32;
+    const Size schedule_count = 3000;
+    const Size difficulty = 1000;
+    const Size schedule_cost = 1;
 
     const double duration_ref = [&]() {
         return 1.15;
         for (auto i = 0; i < 3; ++i)
         {
-            Duration d;
-            const std::size_t count = job_count * schedule_count;
+            Stopwatch sw;
+            const Size count = job_count * schedule_count;
             for (auto i = 0; i < count; ++i)
                 burn(difficulty);
             if (i == 2)
-                return d.stop();
+                return sw.elapse();
         }
         return 0.0;
     }();
     std::cout << duration_ref << std::endl;
 
-    for (std::size_t thread_count : {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100})
+    for (Size thread_count : {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100})
     {
-        Duration duration;
+        Stopwatch sw;
         {
             Scheduler scheduler{job_count, schedule_count, difficulty, schedule_cost};
             Pool pool{thread_count, scheduler};
         }
-        const auto duration_act = duration.stop();
+        const auto duration_act = sw.elapse();
 
         const auto duration_act_cmp = duration_act * thread_count;
         const auto efficiency = 100 * duration_ref / duration_act_cmp;
 
         const auto speedup = duration_ref / duration_act;
-        std::cout << thread_count << " " << efficiency << "% " << speedup << " " << duration_act << std::endl;
+        std::cout << thread_count << " " << efficiency << "% " << speedup << " "
+                  << duration_act << std::endl;
     }
 
     return 0;

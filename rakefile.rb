@@ -40,7 +40,7 @@ my = Class.new() do
     end
 
     def filenames(filter: nil, ext: )
-        FileList.new(File.join(@here, "*#{filter}*.#{ext}")).to_a()
+        FileList.new(File.join(@here, "**/*#{filter}*.#{ext}")).to_a()
     end
 
     private
