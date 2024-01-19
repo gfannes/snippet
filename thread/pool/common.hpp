@@ -16,9 +16,9 @@ using Size = std::size_t;
 
 inline void burn(std::size_t difficulty)
 {
-    volatile float sum = 0;
+    volatile double sum = 0;
     for (auto i = 0; i < difficulty; ++i)
-        sum += std::sin(i);
+        sum += std::sin(sum);
 }
 
 #endif

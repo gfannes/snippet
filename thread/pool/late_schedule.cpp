@@ -116,7 +116,7 @@ int main()
     const Size schedule_cost = 1;
 
     const double duration_ref = [&]() {
-        return 1.15;
+        // return 1.15;
         for (auto i = 0; i < 3; ++i)
         {
             Stopwatch sw;

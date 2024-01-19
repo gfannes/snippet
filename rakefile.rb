@@ -12,7 +12,7 @@ my = Class.new() do
         when :settings
             language = extra
             case language
-            when :cpp then 'gcc:release:O3:c++20'
+            when :cpp then 'gcc:release:O3:c++20:PIC:64'
             else raise("Unknown language '#{language}'")
             end
         else raise("Unknow what '#{what}'")
@@ -29,6 +29,9 @@ my = Class.new() do
             when 'debug' then config[:options] << 'g'
             when 'c++20' then config[:options] << 'std=c++20'
             when 'O3' then config[:options] << 'O3'
+            when 'PIC' then config[:options] << 'fPIC'
+            when '64' then config[:options] << 'm64'
+            when '32' then config[:options] << 'm32'
             else raise("Unknow setting '#{setting}'")
             end
         end
