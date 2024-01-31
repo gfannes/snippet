@@ -28,6 +28,7 @@ my = Class.new() do
             when 'release' then config[:defines] << 'NDEBUG'
             when 'debug' then config[:options] << 'g'
             when 'c++20' then config[:options] << 'std=c++20'
+            when 'c++14' then config[:options] << 'std=c++14'
             when 'O3' then config[:options] << 'O3'
             when 'PIC' then config[:options] << 'fPIC'
             when '64' then config[:options] << 'm64'
