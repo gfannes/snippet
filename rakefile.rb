@@ -13,13 +13,14 @@ my = Class.new() do
             language = extra
             case language
             when :cpp then 'gcc:release:O3:c++20:PIC:64'
+            when :dot then ''
             else raise("Unknown language '#{language}'")
             end
         else raise("Unknow what '#{what}'")
         end
     end
 
-    def build(src_fn, settings)
+    def build_cpp(src_fn, settings)
         config = {options: [], defines: [], includes: [@here]}
         (settings || default(:settings, :cpp)).split(':').each do |setting|
             case setting
@@ -49,16 +50,33 @@ my = Class.new() do
         exe_fn
     end
 
-    def run(exe_fn)
-        start = Time.now()
-        Rake.sh("#{exe_fn}")
-        duration = Time.now()-start
+    def build_dot(dot_fn)
+        pdf_fn = "#{dot_fn}.pdf"
+        Rake.sh("dot -T pdf -o #{pdf_fn} #{dot_fn}")
+        pdf_fn
+    end
 
+    def run(fn)
+        start = Time.now()
+        case File.extname(fn)
+        when ".exe" then Rake.sh("#{fn}")
+        when ".pdf" then Rake.sh("evince #{fn}")
+        else raise("Don't know how to run '#{fn}'")
+        end
+        duration = Time.now()-start
         puts("Duration: #{duration}\n\n")
     end
 
-    def filenames(filter: nil, ext: )
-        FileList.new(File.join(@here, "**/#{filter || default(:filter)}*.#{ext}")).to_a()
+    def filenames(filter: nil, ext: , verbose: false)
+        fns = FileList.new(File.join(@here, "**/#{filter || default(:filter)}*.#{ext}")).to_a()
+        if verbose
+            puts("Found #{fns.size()} matching files:")
+            fns.each do |fn|
+                puts("- #{fn}")
+            end
+            puts()
+        end
+        fns
     end
 
     private
@@ -108,16 +126,21 @@ end
 
 desc("Build and run C++ snippet: [filter: #{my.default(:filter)}, settings: #{my.default(:settings, :cpp)}]")
 task :cpp, %i[filter settings] do |t, args|
-    src_fns = my.filenames(filter: args[:filter], ext: :cpp)
-    puts("Found #{src_fns.size()} matching files:")
-    src_fns.each do |src_fn|
-        puts("- #{src_fn}")
-    end
-    puts()
+    src_fns = my.filenames(filter: args[:filter], ext: :cpp, verbose: true)
     
     src_fns.each do |src_fn|
-        exe_fn = my.build(src_fn, args[:settings])
+        exe_fn = my.build_cpp(src_fn, args[:settings])
         my.run(exe_fn)
+    end
+end
+
+desc("Compile and show dot snippet: [filter: #{my.default(:filter)}, settings: #{my.default(:settings, :dot)}]")
+task :dot, %i[filter settings] do |t, args|
+    src_fns = my.filenames(filter: args[:filter], ext: :dot, verbose: true)
+    
+    src_fns.each do |src_fn|
+        pdf_fn = my.build_dot(src_fn)
+        my.run(pdf_fn)
     end
 end
 

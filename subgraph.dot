@@ -1,0 +1,13 @@
+digraph G {
+    subgraph Stage0 {
+        label="Stage0";
+        cluster=true;
+        a0 -> a1;
+        color=blue;
+    }
+
+    subgraph Stage1 {
+        b0 -> b1;
+        color=blue;
+    }
+}

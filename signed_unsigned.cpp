@@ -26,6 +26,8 @@ int main()
     using u = unsigned int;
     using ii = long;
     using uu = unsigned long;
+    using i16 = std::int16_t;
+    using u16 = std::uint16_t;
     using i32 = std::int32_t;
     using u32 = std::uint32_t;
     using i64 = std::int64_t;
@@ -37,6 +39,8 @@ int main()
     print_type(ii);
     print_type(uu);
     print_type(s);
+    print_type(i16);
+    print_type(u16);
     print_type(i32);
     print_type(u32);
     print_type(i64);
