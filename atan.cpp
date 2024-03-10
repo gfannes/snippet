@@ -74,7 +74,7 @@ int main()
     std::ofstream gnuplot_of{gnuplot_fn};
     gnuplot_of << "plot '" << data_fn << "' using 1:2 with lines title 'std::atan', '' using 1:3 with lines title 'atan_so', '' using 1:4 with lines title 'atan_mtk'" << std::endl;
     gnuplot_of << "pause -1" << std::endl;
-    gnuplot_of << "plot '" << data_fn << "' using 1:6 with lines title 'so-std', '' using 1:6 with lines title 'mtk-std'" << std::endl;
+    gnuplot_of << "plot '" << data_fn << "' using 1:5 with lines title 'so-std', '' using 1:6 with lines title 'mtk-std'" << std::endl;
     gnuplot_of << "pause -1" << std::endl;
 
     return 0;
