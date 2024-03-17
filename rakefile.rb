@@ -50,6 +50,12 @@ my = Class.new() do
         exe_fn
     end
 
+    def build_crystal(cr_fn)
+        exe_fn = "#{cr_fn}.exe"
+        Rake.sh("crystal build #{cr_fn} -o #{exe_fn}")
+        exe_fn
+    end
+
     def build_dot(dot_fn)
         pdf_fn = "#{dot_fn}.pdf"
         Rake.sh("dot -T pdf -o #{pdf_fn} #{dot_fn}")
@@ -130,6 +136,16 @@ task :cpp, %i[filter settings] do |t, args|
     
     src_fns.each do |src_fn|
         exe_fn = my.build_cpp(src_fn, args[:settings])
+        my.run(exe_fn)
+    end
+end
+
+desc("Build and run Crystal snippet: [filter: #{my.default(:filter)}, settings: #{my.default(:settings, :crystal)}]")
+task :cr, %i[filter settings] do |t, args|
+    src_fns = my.filenames(filter: args[:filter], ext: :crystal, verbose: true)
+    
+    src_fns.each do |src_fn|
+        exe_fn = my.build_crystal(src_fn, args[:settings])
         my.run(exe_fn)
     end
 end
