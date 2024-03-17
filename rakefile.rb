@@ -14,6 +14,7 @@ my = Class.new() do
             case language
             when :cpp then 'gcc:release:O3:c++20:PIC:64'
             when :dot then ''
+            when :crystal then ''
             else raise("Unknown language '#{language}'")
             end
         else raise("Unknow what '#{what}'")
