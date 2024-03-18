@@ -51,9 +51,18 @@ my = Class.new() do
         exe_fn
     end
 
-    def build_crystal(cr_fn)
+    def build_crystal(cr_fn, settings)
+        options = []
+        (settings || default(:settings, :crystal)).split(':').each do |setting|
+            case setting
+            when 'release' then options << 'release'
+            when 'static' then options << 'static'
+            else raise("Unknow setting '#{setting}'")
+            end
+        end
+
         exe_fn = "#{cr_fn}.exe"
-        Rake.sh("crystal build #{cr_fn} -o #{exe_fn}")
+        Rake.sh("crystal build #{cr_fn} -o #{exe_fn} #{options.map{|option|"--#{option}"}*' '}")
         exe_fn
     end
 
@@ -143,7 +152,7 @@ end
 
 desc("Build and run Crystal snippet: [filter: #{my.default(:filter)}, settings: #{my.default(:settings, :crystal)}]")
 task :cr, %i[filter settings] do |t, args|
-    src_fns = my.filenames(filter: args[:filter], ext: :crystal, verbose: true)
+    src_fns = my.filenames(filter: args[:filter], ext: :cr, verbose: true)
     
     src_fns.each do |src_fn|
         exe_fn = my.build_crystal(src_fn, args[:settings])
@@ -163,6 +172,8 @@ end
 
 desc('Clean')
 task :clean do
-    rm_f(FileList.new("**/*.exe"))
+    %w[exe dwarf].each do |ext|
+        rm_f(FileList.new("**/*.#{ext}"))
+    end
 end
 
