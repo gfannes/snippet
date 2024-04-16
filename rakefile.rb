@@ -12,7 +12,7 @@ my = Class.new() do
         when :settings
             language = extra
             case language
-            when :cpp then 'gcc:release:O3:c++20:PIC:64'
+            when :cpp then 'clang:release:O3:c++23:PIC:64'
             when :dot then ''
             when :crystal then ''
             else raise("Unknown language '#{language}'")
@@ -29,6 +29,7 @@ my = Class.new() do
             when 'clang' then config[:compiler] = 'clang++'
             when 'release' then config[:defines] << 'NDEBUG'
             when 'debug' then config[:options] << 'g'
+            when 'c++23' then config[:options] << 'std=c++2b'
             when 'c++20' then config[:options] << 'std=c++20'
             when 'c++14' then config[:options] << 'std=c++14'
             when 'O3' then config[:options] << 'O3'
