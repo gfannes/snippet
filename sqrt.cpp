@@ -85,7 +85,6 @@ namespace my {
             guess = (guess + temp) / 2;
             ++count;
         } while (e != 0);
-        std::cout << count << std::endl;
 
         return guess;
     }

@@ -13,6 +13,7 @@ my = Class.new() do
             language = extra
             case language
             when :cpp then 'clang:release:O3:c++23:PIC:64'
+            when :rust then ''
             when :dot then ''
             when :crystal then ''
             else raise("Unknown language '#{language}'")
@@ -48,6 +49,18 @@ my = Class.new() do
         exe_fn = "#{src_fn}.exe"
 
         Rake.sh("#{compiler} #{options_str} #{defines_str} #{src_fn} -o #{exe_fn} #{includes_str}")
+
+        exe_fn
+    end
+
+    def build_rust(src_fn, settings)
+        config = {}
+        (settings || default(:settings, :rust)).split(':').each do |setting|
+        end
+
+        exe_fn = "#{src_fn}.exe"
+
+        Rake.sh("rustc #{src_fn} -o #{exe_fn}")
 
         exe_fn
     end
@@ -147,6 +160,16 @@ task :cpp, %i[filter settings] do |t, args|
     
     src_fns.each do |src_fn|
         exe_fn = my.build_cpp(src_fn, args[:settings])
+        my.run(exe_fn)
+    end
+end
+
+desc("Build and run Rust snippet: [filter: #{my.default(:filter)}, settings: #{my.default(:settings, :rust)}]")
+task :rust, %i[filter settings] do |t, args|
+    src_fns = my.filenames(filter: args[:filter], ext: :rs, verbose: true)
+    
+    src_fns.each do |src_fn|
+        exe_fn = my.build_rust(src_fn, args[:settings])
         my.run(exe_fn)
     end
 end
