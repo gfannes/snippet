@@ -60,7 +60,7 @@ my = Class.new() do
 
         exe_fn = "#{src_fn}.exe"
 
-        Rake.sh("rustc #{src_fn} -o #{exe_fn}")
+        Rake.sh("rustc -C opt-level=3 #{src_fn} -o #{exe_fn}")
 
         exe_fn
     end
