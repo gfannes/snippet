@@ -1,3 +1,8 @@
+// @todo: Add support for fixing Courses in Rooms with capacity per room:
+// - fysica, chemie, biologie, LO, ... should be in dedicated rooms
+// - PZW should be in a huge room
+// - Assign main courses for a class group to a dedicated room
+
 #include <algorithm>
 #include <cassert>
 #include <iostream>
