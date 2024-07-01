@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -11,7 +12,7 @@ using Slot = unsigned int;
 using Hour = unsigned int;
 
 const Count slot_count = 32;
-const Count max_occupation = 25;
+const Count max_occupation = 26;
 
 struct Course
 {
@@ -42,33 +43,36 @@ const Course biologie_2 = Course::make("bio", 2);
 const Course chemie_1 = Course::make("che", 1);
 const Course chemie_2 = Course::make("che", 2);
 const Course duits = Course::make("dui", 3);
-const Course economie = Course::make("eco", 5);
+const Course economie = Course::make("eco", 4);
 const Course engels_2 = Course::make("eng", 2);
 const Course engels_3 = Course::make("eng", 3);
 const Course esthetica_1 = Course::make("est", 1);
 const Course esthetica_2 = Course::make("est", 2);
 const Course filosofie = Course::make("fil", 2);
 const Course frans_3 = Course::make("fra", 3);
+const Course frans_e = Course::make("fra", 1);
 const Course frans_4 = Course::make("fra", 4);
-const Course frans_5 = Course::make("fra", 5);
 const Course fysica_2 = Course::make("fys", 2);
 const Course fysica_3 = Course::make("fys", 3);
 const Course geschiedenis = Course::make("ges", 2);
-const Course godsdienst = Course::make("god", 2);
+const Course godsdienst = Course::make("god", 1);
 const Course grieks = Course::make("gri", 4);
 const Course kunstbeschouwing = Course::make("kun", 2);
-const Course latijn = Course::make("lat", 4);
+const Course latijn = Course::make("lat", 3);
+const Course pzw = Course::make("pzw", 3);
+const Course pze = Course::make("pze", 1);
 const Course lo = Course::make("lop", 2);
 const Course natuurweteschappen = Course::make("nat", 2);
-const Course nederlands = Course::make("ned", 4);
-const Course sociale = Course::make("soc", 5);
+const Course nederlands = Course::make("ned", 3);
+const Course sociale = Course::make("soc", 4);
 const Course spaans = Course::make("spa", 3);
 const Course statistiek = Course::make("sta", 1);
 const Course methodiek = Course::make("met", 2);
-const Course wiskunde_3 = Course::make("wis", 3);
+const Course wiskunde_3a = Course::make("wis", 3);
 const Course wiskunde_4 = Course::make("wis", 4);
-const Course wiskunde_6 = Course::make("wis", 6);
-const Course wiskunde_8 = Course::make("wis", 8);
+const Course wiskunde_5a = Course::make("wis", 5);
+const Course wiskunde_5b = Course::make("wis", 5);
+const Course wiskunde_7 = Course::make("wis", 7);
 
 struct Lesson
 {
@@ -194,9 +198,9 @@ struct Schedule
         }
 
         auto cmp = [](const auto &a, const auto &b) {
-            const Lesson &aa = Lesson::all[a.second];
-            const Lesson &bb = Lesson::all[b.second];
-            return std::make_pair(bb.course.hours, bb.hour) < std::make_pair(aa.course.hours, aa.hour);
+            const Lesson &x = Lesson::all[b.second];
+            const Lesson &y = Lesson::all[a.second];
+            return std::make_tuple(y.course.hours, y.course.id, y.hour) < std::make_tuple(x.course.hours, x.course.id, x.hour);
         };
         std::sort(class_lessons.begin(), class_lessons.end(), cmp);
 
@@ -204,6 +208,8 @@ struct Schedule
         {
             const Class &cl = classes[clix];
             auto &slot__room = class__slot__room[clix];
+            std::cout << "\t" << cl.name << ' ' << Lesson::all[lesson_ix] << std::endl;
+
             const auto [slot, room_ix] = fit(lesson_ix, cl.students, slot__room);
             if (slot__room[slot])
                 return (std::cout << "Slot " << slot << " is already occupied" << std::endl, false);
@@ -221,81 +227,122 @@ struct Schedule
 
     std::pair<Slot, Room::Ix> fit(Lesson::Ix lesson_ix, Count count, const Slot__Room &slot__room)
     {
-        for (Slot slot{}; slot < slot_count; ++slot)
+        bool do_create_new_room = true;
+
+        if ("try to merge with existing lesson")
         {
-            if (slot__room[slot])
-                continue;
-            while (true)
+            for (Slot slot{}; slot < slot_count; ++slot)
             {
+                if (slot__room[slot])
+                    continue;
                 for (Ix rix{}; rix < rooms.size(); ++rix)
                 {
                     const auto &info = rooms[rix].slot__info[slot];
-                    if (info.lesson_ix.value_or(lesson_ix) == lesson_ix && (info.occupation + count) <= max_occupation)
-                        return {slot, rix};
+                    if (info.lesson_ix)
+                    {
+                        if (*info.lesson_ix == lesson_ix && (info.occupation + count) <= max_occupation)
+                            return {slot, rix};
+                    }
+                    else
+                    {
+                        do_create_new_room = false;
+                    }
                 }
-                std::cout << "Creating new room " << rooms.size() << std::endl;
-                rooms.emplace_back();
             }
         }
+
+        if (do_create_new_room)
+        {
+            std::cout << "Creating new room " << rooms.size() << std::endl;
+            rooms.emplace_back();
+        }
+
+        if ("create new lesson in empty room-slot")
+        {
+            for (Slot slot{}; slot < slot_count; ++slot)
+            {
+                if (slot__room[slot])
+                    continue;
+                for (Ix rix{}; rix < rooms.size(); ++rix)
+                {
+                    const auto &info = rooms[rix].slot__info[slot];
+                    if (!info.lesson_ix && (info.occupation + count) <= max_occupation)
+                        return {slot, rix};
+                }
+            }
+        }
+
+        std::cout << "Error: should not happen" << std::endl;
+        assert(false);
         return {0, 0};
     }
 
     std::ostream &write(std::ostream &os) const
     {
-        if (!"print classes")
+        if ("print classes")
             for (const auto &cl : classes)
                 os << cl << std::endl;
 
         const auto sep = '\t';
+
+        if ("print lessons table")
         {
-            std::cout << sep;
-            for (Ix clix{}; clix < classes.size(); ++clix)
-                std::cout << classes[clix].name << '/' << classes[clix].students << sep;
-            std::cout << std::endl;
-        }
-        for (Slot slot{}; slot < slot_count; ++slot)
-        {
-            std::cout << slot << sep;
-            for (Ix clix{}; clix < classes.size(); ++clix)
             {
-                auto room_ix = class__slot__room[clix][slot];
-                if (room_ix)
+                std::cout << sep;
+                for (Ix clix{}; clix < classes.size(); ++clix)
+                    std::cout << classes[clix].name << '/' << classes[clix].students << "    " << sep;
+                std::cout << std::endl;
+            }
+            for (Slot slot{}; slot < slot_count; ++slot)
+            {
+                std::cout << slot << sep;
+                for (Ix clix{}; clix < classes.size(); ++clix)
                 {
-                    const auto &room = rooms[*room_ix];
-                    const auto lesson_ix = room.slot__info[slot].lesson_ix;
-                    if (lesson_ix)
+                    auto room_ix = class__slot__room[clix][slot];
+                    if (room_ix)
                     {
-                        const auto &course = Lesson::all[*lesson_ix].course;
-                        std::cout << course.name << course.hours << '/' << *room_ix << sep;
+                        const auto &room = rooms[*room_ix];
+                        const auto lesson_ix = room.slot__info[slot].lesson_ix;
+                        if (lesson_ix)
+                        {
+                            const auto &course = Lesson::all[*lesson_ix].course;
+                            std::cout << course.name << course.hours << "-R" << *room_ix << "-#" << rooms[*room_ix].slot__info[slot].occupation << sep;
+                        }
+                        else
+                            std::cout << " ? " << sep;
                     }
                     else
-                        std::cout << " ? " << sep;
+                        std::cout << " - " << sep;
                 }
-                else
-                    std::cout << " - " << sep;
+                std::cout << std::endl;
             }
-            std::cout << std::endl;
         }
 
+        if ("print room")
         {
-            std::cout << sep;
-            for (Ix rix{}; rix < rooms.size(); ++rix)
-                std::cout << "Room" << rix << sep;
-            std::cout << std::endl;
-        }
-        for (Slot slot{}; slot < slot_count; ++slot)
-        {
-            std::cout << slot << sep;
-            for (Ix rix{}; rix < rooms.size(); ++rix)
             {
-                const Room &room = rooms[rix];
-                const auto &info = room.slot__info[slot];
-                if (info.lesson_ix)
-                    std::cout << *info.lesson_ix << '/' << info.occupation << sep;
-                else
-                    std::cout << " - " << sep;
+                std::cout << sep;
+                for (Ix rix{}; rix < rooms.size(); ++rix)
+                    std::cout << "Room" << rix << "    " << sep;
+                std::cout << std::endl;
             }
-            std::cout << std::endl;
+            for (Slot slot{}; slot < slot_count; ++slot)
+            {
+                std::cout << slot << sep;
+                for (Ix rix{}; rix < rooms.size(); ++rix)
+                {
+                    const Room &room = rooms[rix];
+                    const auto &info = room.slot__info[slot];
+                    if (info.lesson_ix)
+                    {
+                        const Lesson &lesson = Lesson::all[*info.lesson_ix];
+                        std::cout << lesson.course.name << lesson.course.hours << '_' << lesson.hour << "-#" << info.occupation << sep;
+                    }
+                    else
+                        std::cout << " - " << sep;
+                }
+                std::cout << std::endl;
+            }
         }
 
         return os;
@@ -309,18 +356,18 @@ std::ostream &operator<<(std::ostream &os, const Schedule &schedule)
 int main()
 {
     const std::vector<Class> classes = {
-        Class{.name = "HuWb", .students = 21, .lesson_ixs = make_lessons({aarderijkskunde_1, engels_2, filosofie, frans_4, geschiedenis, godsdienst, kunstbeschouwing, lo, natuurweteschappen, nederlands, sociale, statistiek, wiskunde_3})},
-        Class{.name = "EcMt", .students = 3, .lesson_ixs = make_lessons({aarderijkskunde_1, duits, economie, engels_3, frans_4, geschiedenis, godsdienst, lo, natuurweteschappen, nederlands, wiskunde_4})},
-        Class{.name = "HuWa", .students = 7, .lesson_ixs = make_lessons({aarderijkskunde_1, engels_2, filosofie, frans_4, geschiedenis, godsdienst, kunstbeschouwing, lo, natuurweteschappen, nederlands, sociale, statistiek, wiskunde_3})},
-        Class{.name = "Mt", .students = 8, .lesson_ixs = make_lessons({aarderijkskunde_1, duits, engels_3, esthetica_2, frans_5, geschiedenis, godsdienst, lo, natuurweteschappen, nederlands, spaans, wiskunde_3})},
-        Class{.name = "WeWi6", .students = 11, .lesson_ixs = make_lessons({aarderijkskunde_2, biologie_2, chemie_2, engels_2, frans_3, fysica_3, geschiedenis, godsdienst, lo, nederlands, methodiek, wiskunde_6})},
-        Class{.name = "WeWi8", .students = 9, .lesson_ixs = make_lessons({aarderijkskunde_2, biologie_2, chemie_2, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, lo, nederlands, wiskunde_8})},
-        Class{.name = "EcWi", .students = 7, .lesson_ixs = make_lessons({aarderijkskunde_1, biologie_1, chemie_1, economie, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, lo, nederlands, wiskunde_6})},
-        Class{.name = "GrLa", .students = 1, .lesson_ixs = make_lessons({aarderijkskunde_1, engels_2, esthetica_2, frans_3, geschiedenis, godsdienst, grieks, latijn, lo, natuurweteschappen, nederlands, wiskunde_4})},
-        Class{.name = "LaMt", .students = 2, .lesson_ixs = make_lessons({aarderijkskunde_1, duits, engels_3, esthetica_2, frans_4, geschiedenis, godsdienst, latijn, lo, natuurweteschappen, nederlands, wiskunde_3})},
-        Class{.name = "LaWe", .students = 4, .lesson_ixs = make_lessons({aarderijkskunde_2, biologie_2, chemie_2, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, latijn, lo, nederlands, wiskunde_4})},
-        Class{.name = "LaWi6", .students = 9, .lesson_ixs = make_lessons({aarderijkskunde_1, biologie_2, chemie_1, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, latijn, lo, nederlands, wiskunde_6})},
-        Class{.name = "LaWi8", .students = 1, .lesson_ixs = make_lessons({aarderijkskunde_1, biologie_1, chemie_1, engels_2, frans_3, fysica_2, geschiedenis, godsdienst, latijn, lo, nederlands, wiskunde_8})},
+        Class{.name = "HuWb", .students = 21, .lesson_ixs = make_lessons({aarderijkskunde_1, engels_2, filosofie, frans_3, frans_e, geschiedenis, godsdienst, kunstbeschouwing, lo, natuurweteschappen, nederlands, sociale, statistiek, wiskunde_3a, pzw})},
+        Class{.name = "EcMt", .students = 3, .lesson_ixs = make_lessons({aarderijkskunde_1, duits, economie, engels_3, frans_4, geschiedenis, godsdienst, lo, natuurweteschappen, nederlands, wiskunde_4, pzw})},
+        Class{.name = "HuWa", .students = 7, .lesson_ixs = make_lessons({aarderijkskunde_1, engels_2, filosofie, frans_3, frans_e, geschiedenis, godsdienst, kunstbeschouwing, lo, natuurweteschappen, nederlands, sociale, statistiek, wiskunde_3a, pzw})},
+        Class{.name = "Mt", .students = 8, .lesson_ixs = make_lessons({aarderijkskunde_1, duits, engels_3, esthetica_2, frans_4, geschiedenis, godsdienst, lo, natuurweteschappen, nederlands, spaans, wiskunde_3a, pzw})},
+        Class{.name = "WeWi6", .students = 11, .lesson_ixs = make_lessons({aarderijkskunde_2, biologie_2, chemie_2, engels_2, frans_3, fysica_3, geschiedenis, godsdienst, lo, nederlands, methodiek, wiskunde_5a, pzw})},
+        Class{.name = "WeWi8", .students = 9, .lesson_ixs = make_lessons({aarderijkskunde_2, biologie_2, chemie_2, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, lo, nederlands, wiskunde_7, pzw})},
+        Class{.name = "EcWi", .students = 7, .lesson_ixs = make_lessons({aarderijkskunde_1, biologie_1, chemie_1, economie, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, lo, nederlands, wiskunde_5b, pzw, pze})},
+        Class{.name = "GrLa", .students = 1, .lesson_ixs = make_lessons({aarderijkskunde_1, engels_2, esthetica_2, frans_3, geschiedenis, godsdienst, grieks, latijn, pzw,  lo, natuurweteschappen, nederlands, wiskunde_4})},
+        Class{.name = "LaMt", .students = 2, .lesson_ixs = make_lessons({aarderijkskunde_1, duits, engels_3, esthetica_2, frans_4, geschiedenis, godsdienst, latijn, pzw, lo, natuurweteschappen, nederlands, wiskunde_3a})},
+        Class{.name = "LaWe", .students = 4, .lesson_ixs = make_lessons({aarderijkskunde_2, biologie_2, chemie_2, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, latijn, pzw,  lo, nederlands, wiskunde_4})},
+        Class{.name = "LaWi6", .students = 9, .lesson_ixs = make_lessons({aarderijkskunde_1, biologie_2, chemie_1, engels_2, esthetica_1, frans_3, fysica_2, geschiedenis, godsdienst, latijn, pzw, pze, lo, nederlands, wiskunde_5b})},
+        Class{.name = "LaWi8", .students = 1, .lesson_ixs = make_lessons({aarderijkskunde_1, biologie_1, chemie_1, engels_2, frans_3, fysica_2, geschiedenis, godsdienst, latijn, lo, nederlands, wiskunde_7, pzw, pze})},
     };
 
     Schedule schedule;
