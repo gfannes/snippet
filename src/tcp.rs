@@ -16,7 +16,7 @@ fn handle_client(mut stream: TcpStream) {
         .expect("Failed to write response to client");
 }
 
-fn main() {
+pub fn test() {
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to bind to address");
     println!("Server listening on 127.0.0.1:8080");
 

@@ -28,7 +28,7 @@ impl Filter {
     }
 }
 
-fn main() {
+pub fn test() {
     let mut filter = Filter::new();
     println!("{}", filter.call(0.0));
     println!("{}", filter.call(0.0));
