@@ -27,10 +27,12 @@ my = Class.new() do
         (settings || default(:settings, :cpp)).split(':').each do |setting|
             case setting
             when 'gcc' then config[:compiler] = 'g++'
-            when 'clang' then config[:compiler] = 'clang++'
+            when 'clang'
+                config[:compiler] = 'clang++'
+                config[:options] << 'stdlib=libc++' # Necessary for std::expected with clang++. Make sure you have the latest libcxx and libcxx-devel installed.
             when 'release' then config[:defines] << 'NDEBUG'
             when 'debug' then config[:options] << 'g'
-            when 'c++23' then config[:options] << 'std=c++2b'
+            when 'c++23' then config[:options] << 'std=c++23'
             when 'c++20' then config[:options] << 'std=c++20'
             when 'c++14' then config[:options] << 'std=c++14'
             when 'O3' then config[:options] << 'O3'
@@ -123,14 +125,14 @@ CompileFlags:
 If:
 	PathMatch: [.*\.hpp]
 CompileFlags:
-	Add: [-xc++, -std=c++20, -DUTIL_LOG=0, -DL]
+	Add: [-xc++, -std=c++23, -stdlib=libc++, -DUTIL_LOG=0, -DL]
 
 ---
 
 If:
 	PathMatch: [.*\.cpp]
 CompileFlags:
-	Add: [-xc++, -std=c++20]
+	Add: [-xc++, -std=c++23, -stdlib=libc++]
 
 ---
 

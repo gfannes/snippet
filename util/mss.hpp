@@ -25,6 +25,7 @@ namespace mss {
         callbacks().push_back(callback);
     }
 
+    // is_ok()
     inline bool is_ok(int v) { return v == 0; }
     inline bool is_ok(bool v) { return v; }
     template<typename T>
@@ -38,6 +39,12 @@ namespace mss {
         return exp.has_value();
     }
 
+    // coerce()
+    template<typename Expr>
+    void coerce(int &rc, const Expr &expr)
+    {
+        rc = is_ok(expr) ? 0 : -1;
+    }
     template<typename Expr>
     void coerce(bool &rc, const Expr &expr)
     {
@@ -82,6 +89,17 @@ namespace mss {
         return ok;
     }
 
+    template<typename RC, typename Expr>
+    bool coerce_q(RC &rc, const Expr &expr)
+    {
+        if constexpr (std::is_same_v<RC, Expr>)
+            rc = expr;
+        else
+            coerce(rc, expr);
+
+        return is_ok(expr);
+    }
+
 } // namespace mss
 
 #define MSS_BEGIN(rc) \
@@ -94,6 +112,12 @@ namespace mss {
     if (!mss::coerce(l_mss_rc, expr, __FILE__, __LINE__, __FUNCTION__)) \
     {                                                                   \
         return l_mss_rc;                                                \
+    }
+
+#define MSS_Q(expr)                     \
+    if (!mss::coerce_q(l_mss_rc, expr)) \
+    {                                   \
+        return l_mss_rc;                \
     }
 
 #endif

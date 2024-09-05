@@ -6,7 +6,7 @@ struct Point {
     y: i32,
 }
 
-pub fn test() {
+pub fn main() {
     let point = Point { x: 1, y: 2 };
 
     // Convert the Point to a JSON string.

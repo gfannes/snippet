@@ -1,7 +1,8 @@
-use snippet::{filter, serde, tcp};
+use snippet::{filter, serde, strange, tcp};
 
 fn main() {
-    tcp::test();
-    serde::test();
-    filter::test();
+    tcp::main();
+    serde::main();
+    filter::main();
+    strange::main();
 }
