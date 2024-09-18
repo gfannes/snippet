@@ -1,3 +1,4 @@
+pub mod builder;
 pub mod filter;
 pub mod serde;
 pub mod strange;
