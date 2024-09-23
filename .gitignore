@@ -1,5 +1,6 @@
 *.exe
 .clangd
+Cargo.lock
 
 
 # Added by cargo
