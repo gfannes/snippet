@@ -6,12 +6,21 @@
 std::map<std::string, std::string> tt;
 
 template<typename A, typename B>
-void print()
+void print_sum()
 {
     A a{};
     B b{};
     auto c = a + b;
     std::cout << tt[typeid(a).name()] << " + " << tt[typeid(b).name()] << " = " << tt[typeid(c).name()] << std::endl;
+}
+
+template<typename A, typename B>
+void print_mul()
+{
+    A a{};
+    B b{};
+    auto c = a * b;
+    std::cout << tt[typeid(a).name()] << " * " << tt[typeid(b).name()] << " = " << tt[typeid(c).name()] << std::endl;
 }
 
 int main()
@@ -48,21 +57,24 @@ int main()
 
     std::cout << std::endl;
 
-    print<i, i>();
-    print<i, u>();
-    print<u, i>();
-    print<u, u>();
+    print_sum<i, i>();
+    print_sum<i, u>();
+    print_sum<u, i>();
+    print_sum<u, u>();
 
     std::cout << std::endl;
 
-    print<i32, i64>();
-    print<u32, u64>();
-    print<i32, u64>();
-    print<u32, i64>();
+    print_sum<i32, i64>();
+    print_sum<u32, u64>();
+    print_sum<i32, u64>();
+    print_sum<u32, i64>();
 
     std::cout << std::endl;
 
-    print<s, i64>();
+    print_sum<s, i64>();
+
+    std::cout << std::endl;
+    print_mul<s, i64>();
 
     return 0;
 }
