@@ -75,6 +75,9 @@ int main()
 
     std::cout << std::endl;
     print_mul<s, i64>();
+    print_mul<u32, i64>();
+    print_mul<i64, i64>();
+    print_mul<i32, i64>();
 
     return 0;
 }

@@ -13,6 +13,7 @@ my = Class.new do
       language = extra
       case language
       when :cpp then 'clang:release:O3:c++23:PIC:64'
+      when :zig then ''
       when :rust then ''
       when :dot then ''
       when :crystal then ''
@@ -51,6 +52,14 @@ my = Class.new do
     exe_fn = "#{src_fn}.exe"
 
     Rake.sh("#{compiler} #{options_str} #{defines_str} #{src_fn} -o #{exe_fn} #{includes_str}")
+
+    exe_fn
+  end
+
+  def build_zig(src_fn, _settings)
+    exe_fn = "#{src_fn}.exe"
+
+    Rake.sh("zig build-exe #{src_fn} --name #{File.basename(exe_fn)}")
 
     exe_fn
   end
@@ -162,6 +171,16 @@ task :cpp, %i[filter settings] do |_t, args|
 
   src_fns.each do |src_fn|
     exe_fn = my.build_cpp(src_fn, args[:settings])
+    my.run(exe_fn)
+  end
+end
+
+desc("Build and run Zig snippet: [filter: #{my.default(:filter)}, settings: #{my.default(:settings, :zig)}]")
+task :zig, %i[filter settings] do |_t, args|
+  src_fns = my.filenames(filter: args[:filter], ext: :zig, verbose: true)
+
+  src_fns.each do |src_fn|
+    exe_fn = my.build_zig(src_fn, args[:settings])
     my.run(exe_fn)
   end
 end

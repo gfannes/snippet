@@ -1,4 +1,5 @@
 *.exe
+*.o
 .clangd
 Cargo.lock
 
