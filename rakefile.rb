@@ -59,7 +59,7 @@ my = Class.new do
   def build_zig(src_fn, _settings)
     exe_fn = "#{src_fn}.exe"
 
-    Rake.sh("zig build-exe #{src_fn} --name #{File.basename(exe_fn)}")
+    Rake.sh("zig test #{src_fn} --test-no-exec -femit-bin=#{File.basename(exe_fn)}")
 
     exe_fn
   end
@@ -217,7 +217,7 @@ end
 
 desc('Clean')
 task :clean do
-  %w[exe dwarf].each do |ext|
+  %w[exe dwarf o].each do |ext|
     rm_f(FileList.new("**/*.#{ext}"))
   end
 end

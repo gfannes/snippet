@@ -1,4 +1,5 @@
 const std = @import("std");
+const ut = std.testing;
 
 const Strange = struct {
     content: []const u8,
@@ -81,7 +82,7 @@ fn parse(content: []const u8, cb: anytype) !void {
     }
 }
 
-pub fn main() !void {
+test "ut" {
     const cb = struct {
         pub fn call(_: @This(), item: Item, str: []const u8) void {
             std.debug.print("[{}](str:{s})\n", .{ item, str });

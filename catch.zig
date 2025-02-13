@@ -7,4 +7,4 @@ fn doAThing(_: []u8) void {
     _ = number; // ...
 }
 
-pub fn main() !void {}
+test "ut" {}

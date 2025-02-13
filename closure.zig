@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn main() !void {
+test "ut" {
     var counter = struct {
         count: usize,
 

@@ -12,7 +12,7 @@ const Edge = struct {
     to: *Node,
 };
 
-pub fn main() void {
+test "ut" {
     std.debug.print("42: {}\n", .{42});
 
     const p: Point = .{ .x = 1, .y = 2 };
