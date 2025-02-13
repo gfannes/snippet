@@ -42,6 +42,30 @@ const Strange = struct {
     }
 };
 
+test "Strange" {
+    var strange: Strange = undefined;
+    {
+        strange = Strange{ .content = "abc" };
+        if (strange.pop_to("a")) |strch| {
+            try ut.expect(std.mem.eql(u8, strch.str, ""));
+            try ut.expect(strch.ch == 'a');
+        } else unreachable;
+    }
+    {
+        strange = Strange{ .content = "abc" };
+        if (strange.pop_to("cb")) |strch| {
+            try ut.expect(std.mem.eql(u8, strch.str, "a"));
+            try ut.expect(strch.ch == 'b');
+        } else unreachable;
+    }
+    {
+        strange = Strange{ .content = "abc" };
+        if (strange.pop_to("d")) |_| {
+            unreachable;
+        }
+    }
+}
+
 const State = enum { Body, Tag, Attr };
 
 const Item = enum { Text, Open, Attr, Close };
