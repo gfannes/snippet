@@ -14,6 +14,8 @@ const Strange = struct {
         while (ix < self.content.len) : (ix += 1) {
             const ch = self.content[ix];
             if (ch == '\\') {
+                // We accept whatever character comes after the escape.
+                // If self.content would end on an incomplete escape and no match was found yet, we will return null.
                 ix += 1;
             } else {
                 if (contains(chars, ch)) {
@@ -26,12 +28,48 @@ const Strange = struct {
         }
         return null;
     }
+
+    test "Strange.pop_to" {
+        var strange: Strange = undefined;
+        {
+            strange = Strange{ .content = "abc" };
+            if (strange.pop_to("a")) |strch| {
+                try ut.expect(std.mem.eql(u8, strch.str, ""));
+                try ut.expect(strch.ch == 'a');
+            } else unreachable;
+        }
+        {
+            strange = Strange{ .content = "abc" };
+            if (strange.pop_to("cb")) |strch| {
+                try ut.expect(std.mem.eql(u8, strch.str, "a"));
+                try ut.expect(strch.ch == 'b');
+            } else unreachable;
+        }
+        {
+            strange = Strange{ .content = "abc" };
+            if (strange.pop_to("d")) |_| {
+                unreachable;
+            }
+        }
+    }
+
     fn pop_ch(self: *Strange, ch: u8) bool {
-        if (self.content.len == 0) return false;
-        const ret = self.content[0] == ch;
+        if (self.content.len == 0 or self.content[0] != ch) return false;
         self.content.ptr += 1;
         self.content.len -= 1;
-        return ret;
+        return true;
+    }
+
+    test "Strange.pop_ch" {
+        var strange: Strange = undefined;
+        {
+            strange = Strange{ .content = "abc" };
+            try ut.expect(strange.pop_ch('a'));
+            try ut.expect(!strange.pop_ch('a'));
+            try ut.expect(strange.pop_ch('b'));
+            try ut.expect(strange.pop_ch('c'));
+            try ut.expect(!strange.pop_ch('c'));
+        }
     }
 
     fn contains(chars: []const u8, ch: u8) bool {
@@ -40,31 +78,16 @@ const Strange = struct {
         }
         return false;
     }
-};
 
-test "Strange" {
-    var strange: Strange = undefined;
-    {
-        strange = Strange{ .content = "abc" };
-        if (strange.pop_to("a")) |strch| {
-            try ut.expect(std.mem.eql(u8, strch.str, ""));
-            try ut.expect(strch.ch == 'a');
-        } else unreachable;
+    test "Strange.contains" {
+        try ut.expect(Strange.contains("abc", 'a'));
+        try ut.expect(Strange.contains("abc", 'a'));
+        try ut.expect(Strange.contains("abc", 'b'));
+        try ut.expect(Strange.contains("abc", 'c'));
+        try ut.expect(!Strange.contains("abc", 'd'));
+        try ut.expect(!Strange.contains("", 'a'));
     }
-    {
-        strange = Strange{ .content = "abc" };
-        if (strange.pop_to("cb")) |strch| {
-            try ut.expect(std.mem.eql(u8, strch.str, "a"));
-            try ut.expect(strch.ch == 'b');
-        } else unreachable;
-    }
-    {
-        strange = Strange{ .content = "abc" };
-        if (strange.pop_to("d")) |_| {
-            unreachable;
-        }
-    }
-}
+};
 
 const State = enum { Body, Tag, Attr };
 
