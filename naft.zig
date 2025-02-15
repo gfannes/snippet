@@ -87,49 +87,109 @@ const Strange = struct {
         try ut.expect(!Strange.contains("abc", 'd'));
         try ut.expect(!Strange.contains("", 'a'));
     }
+
+    fn pop_all(self: *Strange) ?[]const u8 {
+        if (self.content.len == 0) return null;
+        const str = self.content;
+        self.content.ptr += self.content.len;
+        self.content.len = 0;
+        return str;
+    }
+
+    test "Strange.pop_all" {
+        var strange = Strange{ .content = "abc" };
+        if (strange.pop_all()) |str| {
+            try ut.expectEqualSlices(u8, "abc", str);
+        } else unreachable;
+        try ut.expect(strange.content.len == 0);
+    }
 };
+
+const Parser = struct {
+    strange: Strange,
+    level: u32 = 0,
+
+    fn parse_node(self: *Parser, cb: anytype) !void {
+        if (self.strange.pop_to("]")) |tag| {
+            cb.call(Item.Open, tag.str);
+            while (self.strange.pop_to("([{")) |strch| {
+                switch (strch.ch) {
+                    '(' => if (self.strange.pop_to(")")) |attr| {
+                        cb.call(Item.Attr, attr.str);
+                    },
+                    '[' => {
+                        cb.call(Item.Close, strch.str);
+                        try self.parse_node(cb);
+                    },
+                    '{' => if (self.strange.pop_to("[}")) |strch2| {
+                        switch (strch2.ch) {
+                            '[' => {
+                                cb.call(Item.Text, strch2.str);
+                                try self.parse_node(cb);
+                            },
+                            '}' => cb.call(Item.Close, strch.str),
+                            else => {},
+                        }
+                    },
+                    else => {},
+                }
+            }
+        }
+    }
+
+    fn parse_block(self: *Parser, cb: anytype) !void {
+        while (self.strange.pop_to("[")) |strch| {
+            try cb.call(Item.Text, strch.str);
+        }
+        if (self.strange.pop_all()) |str| {
+            try cb.call(Item.Text, str);
+        }
+    }
+};
+
+test "Parser.parse_block" {
+    const content = "abc";
+    const exp = "(naft.Item.Text:abc)";
+
+    const strange = Strange{ .content = content };
+    var parser = Parser{ .strange = strange };
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const ma = gpa.allocator();
+
+    const Parts = std.ArrayList([]const u8);
+    var parts = Parts.init(ma);
+
+    var cb = struct {
+        ma: std.mem.Allocator,
+        parts: *Parts,
+
+        pub fn call(self: *@This(), item: Item, str: []const u8) !void {
+            std.debug.print("CB: item: {}, str: {s}\n", .{ item, str });
+            try self.parts.append(try std.fmt.allocPrint(self.ma, "({}:{s})", .{ item, str }));
+        }
+    }{ .ma = ma, .parts = &parts };
+    try parser.parse_block(&cb);
+
+    const act = try std.mem.concat(ma, u8, parts.items);
+    try ut.expectEqualSlices(u8, exp, act);
+
+    parts.deinit();
+}
 
 const State = enum { Body, Tag, Attr };
 
 const Item = enum { Text, Open, Attr, Close };
 
-fn parse_node(strange: *Strange, cb: anytype) !void {
-    if (strange.pop_to("]")) |tag| {
-        cb.call(Item.Open, tag.str);
-        while (strange.pop_to("([{")) |strch| {
-            switch (strch.ch) {
-                '(' => if (strange.pop_to(")")) |attr| {
-                    cb.call(Item.Attr, attr.str);
-                },
-                '[' => {
-                    cb.call(Item.Close, strch.str);
-                    try parse_node(strange, cb);
-                },
-                '{' => if (strange.pop_to("[}")) |strch2| {
-                    switch (strch2.ch) {
-                        '[' => {
-                            cb.call(Item.Text, strch2.str);
-                            try parse_node(strange, cb);
-                        },
-                        '}' => cb.call(Item.Close, strch.str),
-                        else => {},
-                    }
-                },
-                else => {},
-            }
-        }
-    }
-}
-
 fn parse(content: []const u8, cb: anytype) !void {
-    var strange = Strange{ .content = content };
-    if (strange.pop_to("[")) |text| {
+    var parser = Parser{ .strange = Strange{ .content = content } };
+    if (parser.strange.pop_to("[")) |text| {
         cb.call(Item.Text, text.str);
-        try parse_node(&strange, cb);
+        try parser.parse_node(cb);
     }
 }
 
-test "ut" {
+test "parse" {
     const cb = struct {
         pub fn call(_: @This(), item: Item, str: []const u8) void {
             std.debug.print("[{}](str:{s})\n", .{ item, str });
