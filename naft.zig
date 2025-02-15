@@ -148,33 +148,52 @@ const Parser = struct {
 };
 
 test "Parser.parse_block" {
-    const content = "abc";
-    const exp = "(naft.Item.Text:abc)";
+    const check = struct {
+        fn call(content: []const u8, exp: []const u8) !void {
+            const strange = Strange{ .content = content };
+            var parser = Parser{ .strange = strange };
 
-    const strange = Strange{ .content = content };
-    var parser = Parser{ .strange = strange };
+            var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+            defer {
+                const check = gpa.deinit();
+                std.debug.print("GPA: {any}\n", .{check});
+            }
+            const ma = gpa.allocator();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const ma = gpa.allocator();
+            const Parts = std.ArrayList([]const u8);
+            var parts = Parts.init(ma);
+            defer {
+                for (parts.items) |item| {
+                    ma.free(item);
+                }
+                parts.deinit();
+            }
 
-    const Parts = std.ArrayList([]const u8);
-    var parts = Parts.init(ma);
+            var cb = struct {
+                ma: std.mem.Allocator,
+                parts: *Parts,
 
-    var cb = struct {
-        ma: std.mem.Allocator,
-        parts: *Parts,
+                pub fn call(self: *@This(), item: Item, str: []const u8) !void {
+                    std.debug.print("CB: item: {}, str: {s}\n", .{ item, str });
+                    const item_str = switch (item) {
+                        Item.Text => "Text",
+                        Item.Open => "Open",
+                        Item.Attr => "Attr",
+                        Item.Close => "Close",
+                    };
+                    try self.parts.append(try std.fmt.allocPrint(self.ma, "({s}:{s})", .{ item_str, str }));
+                }
+            }{ .ma = ma, .parts = &parts };
+            try parser.parse_block(&cb);
 
-        pub fn call(self: *@This(), item: Item, str: []const u8) !void {
-            std.debug.print("CB: item: {}, str: {s}\n", .{ item, str });
-            try self.parts.append(try std.fmt.allocPrint(self.ma, "({}:{s})", .{ item, str }));
+            const act = try std.mem.concat(ma, u8, parts.items);
+            defer ma.free(act);
+
+            try ut.expectEqualSlices(u8, exp, act);
         }
-    }{ .ma = ma, .parts = &parts };
-    try parser.parse_block(&cb);
+    }.call;
 
-    const act = try std.mem.concat(ma, u8, parts.items);
-    try ut.expectEqualSlices(u8, exp, act);
-
-    parts.deinit();
+    try check("abc", "(Text:abc)");
 }
 
 const State = enum { Body, Tag, Attr };
