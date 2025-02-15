@@ -158,16 +158,12 @@ test "Parser.parse_block" {
                 const check = gpa.deinit();
                 std.debug.print("GPA: {any}\n", .{check});
             }
-            const ma = gpa.allocator();
+            var aa = std.heap.ArenaAllocator.init(gpa.allocator());
+            defer aa.deinit();
+            const ma = aa.allocator();
 
             const Parts = std.ArrayList([]const u8);
             var parts = Parts.init(ma);
-            defer {
-                for (parts.items) |item| {
-                    ma.free(item);
-                }
-                parts.deinit();
-            }
 
             var cb = struct {
                 ma: std.mem.Allocator,
@@ -187,7 +183,6 @@ test "Parser.parse_block" {
             try parser.parse_block(&cb);
 
             const act = try std.mem.concat(ma, u8, parts.items);
-            defer ma.free(act);
 
             try ut.expectEqualSlices(u8, exp, act);
         }
