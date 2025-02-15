@@ -1,25 +1,34 @@
 const std = @import("std");
 const ut = std.testing;
 
+const NaftError = error{
+    UnclosedTag,
+    UnclosedAttr,
+    BlockNest,
+};
+
 const Strange = struct {
     content: []const u8,
 
     const StrCh = struct {
         str: []const u8,
         ch: u8,
+        escape: bool = false,
     };
 
     fn pop_to(self: *Strange, chars: []const u8) ?StrCh {
         var ix: usize = 0;
+        var escape = false;
         while (ix < self.content.len) : (ix += 1) {
             const ch = self.content[ix];
             if (ch == '\\') {
                 // We accept whatever character comes after the escape.
                 // If self.content would end on an incomplete escape and no match was found yet, we will return null.
                 ix += 1;
+                escape = true;
             } else {
                 if (contains(chars, ch)) {
-                    const ret = StrCh{ .str = self.content[0..ix], .ch = ch };
+                    const ret = StrCh{ .str = self.content[0..ix], .ch = ch, .escape = escape };
                     self.content.ptr += ix + 1;
                     self.content.len -= ix + 1;
                     return ret;
@@ -53,25 +62,6 @@ const Strange = struct {
         }
     }
 
-    fn pop_ch(self: *Strange, ch: u8) bool {
-        if (self.content.len == 0 or self.content[0] != ch) return false;
-        self.content.ptr += 1;
-        self.content.len -= 1;
-        return true;
-    }
-
-    test "Strange.pop_ch" {
-        var strange: Strange = undefined;
-        {
-            strange = Strange{ .content = "abc" };
-            try ut.expect(strange.pop_ch('a'));
-            try ut.expect(!strange.pop_ch('a'));
-            try ut.expect(strange.pop_ch('b'));
-            try ut.expect(strange.pop_ch('c'));
-            try ut.expect(!strange.pop_ch('c'));
-        }
-    }
-
     fn contains(chars: []const u8, ch: u8) bool {
         for (chars) |c| {
             if (c == ch) return true;
@@ -88,20 +78,29 @@ const Strange = struct {
         try ut.expect(!Strange.contains("", 'a'));
     }
 
-    fn pop_all(self: *Strange) ?[]const u8 {
+    fn pop_all(self: *Strange) ?StrCh {
         if (self.content.len == 0) return null;
-        const str = self.content;
+        const ret = StrCh{ .str = self.content, .ch = 0, .escape = contains(self.content, '\\') };
         self.content.ptr += self.content.len;
         self.content.len = 0;
-        return str;
+        return ret;
     }
 
     test "Strange.pop_all" {
-        var strange = Strange{ .content = "abc" };
-        if (strange.pop_all()) |str| {
-            try ut.expectEqualSlices(u8, "abc", str);
-        } else unreachable;
-        try ut.expect(strange.content.len == 0);
+        const Scn = struct {
+            content: []const u8,
+            escape: bool = false,
+        };
+        const scns = [_]Scn{ .{ .content = "abc" }, .{ .content = "a\\c", .escape = true } };
+        for (scns) |scn| {
+            var strange = Strange{ .content = scn.content };
+            if (strange.pop_all()) |strch| {
+                try ut.expectEqualSlices(u8, scn.content, strch.str);
+                try ut.expect(strch.ch == 0);
+                try ut.expect(strch.escape == scn.escape);
+            } else unreachable;
+            try ut.expect(strange.content.len == 0);
+        }
     }
 };
 
@@ -111,7 +110,7 @@ const Parser = struct {
 
     fn parse_node(self: *Parser, cb: anytype) !void {
         if (self.strange.pop_to("]")) |tag| {
-            cb.call(Item.Open, tag.str);
+            cb.call(Item.Tag, tag.str);
             while (self.strange.pop_to("([{")) |strch| {
                 switch (strch.ch) {
                     '(' => if (self.strange.pop_to(")")) |attr| {
@@ -138,26 +137,63 @@ const Parser = struct {
     }
 
     fn parse_block(self: *Parser, cb: anytype) !void {
-        while (self.strange.pop_to("[")) |strch| {
-            try cb.call(Item.Text, strch.str);
+        var text_opt = self.strange.pop_to("[");
+        while (text_opt) |text| {
+            if (text.str.len > 0)
+                try cb.call(Item.Text, text.str, text.escape);
+            if (self.strange.pop_to("]")) |tag| {
+                try cb.call(Item.Tag, tag.str, tag.escape);
+                while (true) {
+                    const needle = if (self.level == 0) "([{" else "([{}";
+                    const strch_opt = self.strange.pop_to(needle);
+                    if (strch_opt) |strch| {
+                        switch (strch.ch) {
+                            '(' => {
+                                if (strch.str.len > 0)
+                                    try cb.call(Item.Text, strch.str, strch.escape);
+                                if (self.strange.pop_to(")")) |attr| {
+                                    try cb.call(Item.Attr, attr.str, attr.escape);
+                                } else return NaftError.UnclosedAttr;
+                            },
+                            '[' => {
+                                // We found another Tag at the same level: continue the outer while loop
+                                text_opt = strch_opt;
+                                break;
+                            },
+                            '{' => {
+                                try cb.call(Item.Block, strch.str, strch.escape);
+                                self.level += 1;
+                                try self.parse_block(cb);
+                            },
+                            '}' => {
+                                if (self.level == 0)
+                                    return NaftError.BlockNest;
+                                self.level -= 1;
+                                try cb.call(Item.Close, strch.str, strch.escape);
+                            },
+                            else => unreachable,
+                        }
+                    } else {
+                        text_opt = null;
+                        break;
+                    }
+                }
+            } else return NaftError.UnclosedTag;
         }
-        if (self.strange.pop_all()) |str| {
-            try cb.call(Item.Text, str);
+
+        if (self.strange.pop_all()) |strch| {
+            try cb.call(Item.Text, strch.str, strch.escape);
         }
     }
 };
 
 test "Parser.parse_block" {
-    const check = struct {
+    const testit = struct {
         fn call(content: []const u8, exp: []const u8) !void {
             const strange = Strange{ .content = content };
             var parser = Parser{ .strange = strange };
 
             var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-            defer {
-                const check = gpa.deinit();
-                std.debug.print("GPA: {any}\n", .{check});
-            }
             var aa = std.heap.ArenaAllocator.init(gpa.allocator());
             defer aa.deinit();
             const ma = aa.allocator();
@@ -169,12 +205,13 @@ test "Parser.parse_block" {
                 ma: std.mem.Allocator,
                 parts: *Parts,
 
-                pub fn call(self: *@This(), item: Item, str: []const u8) !void {
-                    std.debug.print("CB: item: {}, str: {s}\n", .{ item, str });
+                pub fn call(self: *@This(), item: Item, str: []const u8, escape: bool) !void {
+                    std.debug.print("CB: {} {s} {}\n", .{ item, str, escape });
                     const item_str = switch (item) {
                         Item.Text => "Text",
-                        Item.Open => "Open",
+                        Item.Tag => "Tag",
                         Item.Attr => "Attr",
+                        Item.Block => "Block",
                         Item.Close => "Close",
                     };
                     try self.parts.append(try std.fmt.allocPrint(self.ma, "({s}:{s})", .{ item_str, str }));
@@ -188,12 +225,17 @@ test "Parser.parse_block" {
         }
     }.call;
 
-    try check("abc", "(Text:abc)");
+    try testit("abc", "(Text:abc)");
+    try testit("[tag]", "(Tag:tag)");
+    try testit("[tag](attr1)", "(Tag:tag)(Attr:attr1)");
+    try testit("[tag](attr1)(attr2)", "(Tag:tag)(Attr:attr1)(Attr:attr2)");
+    try testit("[tag1][tag2]", "(Tag:tag1)(Tag:tag2)");
+    try testit("[a]{[b][c]}", "(Tag:a)(Block:)(Tag:b)(Tag:c)(Close:)");
 }
 
 const State = enum { Body, Tag, Attr };
 
-const Item = enum { Text, Open, Attr, Close };
+const Item = enum { Text, Tag, Attr, Block, Close };
 
 fn parse(content: []const u8, cb: anytype) !void {
     var parser = Parser{ .strange = Strange{ .content = content } };
