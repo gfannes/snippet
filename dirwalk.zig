@@ -29,16 +29,17 @@ const Walker = struct {
         // First const is necessary to support assignment from `&[][]const u8{".o", ".exe"}`.
         extensions: []const []const u8 = &.{},
     };
-    filter: Filter = .{},
 
-    pub fn walk(self: Walker, dir: std.fs.Dir, cb: anytype) !void {
+    filter: Filter = .{},
+    _buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+
+    pub fn walk(self: *Walker, dir: std.fs.Dir, cb: anytype) !void {
         var it = dir.iterate();
         while (try it.next()) |el| {
-            if (self._gate(dir, el)) {
+            if (self._filter(dir, el)) {
                 switch (el.kind) {
                     std.fs.File.Kind.file => {
-                        var buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-                        const path = try dir.realpath(".", &buffer);
+                        const path = try dir.realpath(".", &self._buffer);
                         cb(path, el.name);
                     },
                     std.fs.File.Kind.directory => {
@@ -52,7 +53,7 @@ const Walker = struct {
         }
     }
 
-    fn _gate(self: Walker, _: std.fs.Dir, entry: std.fs.Dir.Entry) bool {
+    fn _filter(self: Walker, _: std.fs.Dir, entry: std.fs.Dir.Entry) bool {
         if (self.filter.hidden and entry.name.len > 0 and entry.name[0] == '.')
             return false;
 
@@ -67,7 +68,7 @@ const Walker = struct {
 };
 
 test "walk" {
-    const walker = Walker{ .filter = .{ .extensions = &[_][]const u8{ ".o", ".exe" } } };
+    var walker = Walker{ .filter = .{ .extensions = &[_][]const u8{ ".o", ".exe" } } };
     const cb = struct {
         pub fn call(path: []const u8, name: []const u8) void {
             std.debug.print("path: {s}, name: {s}\n", .{ path, name });

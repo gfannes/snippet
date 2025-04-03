@@ -12,7 +12,7 @@ my = Class.new do
     when :settings
       language = extra
       case language
-      when :cpp then 'clang:release:O3:c++23:PIC:64'
+      when :cpp then 'clang:debug:c++23:PIC:64'
       when :zig then ''
       when :rust then ''
       when :dot then ''
