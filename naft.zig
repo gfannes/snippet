@@ -196,13 +196,13 @@ test "Parser.parse_block" {
             var gpa = std.heap.GeneralPurposeAllocator(.{}){};
             var aa = std.heap.ArenaAllocator.init(gpa.allocator());
             defer aa.deinit();
-            const ma = aa.allocator();
+            const a = aa.allocator();
 
             const Parts = std.ArrayList([]const u8);
-            var parts = Parts.init(ma);
+            var parts = Parts{};
 
             var cb = struct {
-                ma: std.mem.Allocator,
+                a: std.mem.Allocator,
                 parts: *Parts,
 
                 pub fn call(self: *@This(), item: Item, str: []const u8, escape: bool) !void {
@@ -214,12 +214,12 @@ test "Parser.parse_block" {
                         Item.Block => "Block",
                         Item.Close => "Close",
                     };
-                    try self.parts.append(try std.fmt.allocPrint(self.ma, "({s}:{s})", .{ item_str, str }));
+                    try self.parts.append(self.a, try std.fmt.allocPrint(self.a, "({s}:{s})", .{ item_str, str }));
                 }
-            }{ .ma = ma, .parts = &parts };
+            }{ .a = a, .parts = &parts };
             try parser.parse_block(&cb);
 
-            const act = try std.mem.concat(ma, u8, parts.items);
+            const act = try std.mem.concat(a, u8, parts.items);
 
             try ut.expectEqualSlices(u8, exp, act);
         }

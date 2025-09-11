@@ -31,7 +31,7 @@ const Walker = struct {
     };
 
     filter: Filter = .{},
-    _buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined,
+    _buffer: [std.fs.max_path_bytes]u8 = undefined,
 
     pub fn walk(self: *Walker, dir: std.fs.Dir, cb: anytype) !void {
         var it = dir.iterate();

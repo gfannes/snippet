@@ -59,7 +59,14 @@ my = Class.new do
   def build_zig(src_fn, _settings)
     exe_fn = "#{src_fn}.exe"
 
-    Rake.sh("zig test #{src_fn} --test-no-exec -femit-bin=#{File.basename(exe_fn)}")
+    mode = :safe
+    # mode = :fast
+    # mode = :debug
+
+    m = {safe: 'ReleaseSafe', fast: 'ReleaseFast'}[mode]
+    mode_str = m ? "-O #{m}" : ''
+
+    Rake.sh("zig test #{mode_str} #{src_fn} --test-no-exec -femit-bin=#{File.basename(exe_fn)} -freference-trace=10")
 
     exe_fn
   end
