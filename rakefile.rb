@@ -59,9 +59,9 @@ my = Class.new do
   def build_zig(src_fn, _settings)
     exe_fn = "#{src_fn}.exe"
 
-    mode = :safe
+    # mode = :safe
     # mode = :fast
-    # mode = :debug
+    mode = :debug
 
     m = {safe: 'ReleaseSafe', fast: 'ReleaseFast'}[mode]
     mode_str = m ? "-O #{m}" : ''
