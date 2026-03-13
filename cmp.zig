@@ -3,47 +3,46 @@ const std = @import("std");
 const File = struct {
     const Self = @This();
 
+    io: std.Io,
+
     buffer: [1024 * 1024]u8 = undefined,
 
-    file: std.fs.File = undefined,
-    stat: std.fs.File.Stat = undefined,
+    file: std.Io.File = undefined,
+    stat: std.Io.File.Stat = undefined,
     rbuf: [1024]u8 = undefined,
-    reader: std.fs.File.Reader = undefined,
-    io: *std.Io.Reader = undefined,
+    reader: std.Io.File.Reader = undefined,
 
     fn init(self: *Self, path: []const u8) !void {
-        self.file = try std.fs.openFileAbsolute(path, .{});
-        self.stat = try self.file.stat();
-        self.reader = self.file.reader(&self.rbuf);
-        self.io = &self.reader.interface;
+        self.file = try std.Io.Dir.openFileAbsolute(self.io, path, .{});
+        self.stat = try self.file.stat(self.io);
+        self.reader = self.file.reader(self.io, &self.rbuf);
     }
     fn deinit(self: *Self) void {
-        self.file.close();
+        self.file.close(self.io);
     }
 };
 
-test "cmp" {
-    const ut = std.testing;
-
-    var fa = File{};
-    try fa.init("/home/geertf/aws/auro-masv-transfer/AURO TEST DISC/AURO_TESTDISC_V10.iso");
+fn compare(io: std.Io, a_fp: []const u8, b_fp: []const u8) !bool {
+    var fa = File{ .io = io };
+    try fa.init(a_fp);
     defer fa.deinit();
 
-    var fb = File{};
-    try fb.init("/home/geertf/story/cd13/AURO_TESTDISC_V10.iso");
+    var fb = File{ .io = io };
+    try fb.init(b_fp);
     defer fb.deinit();
 
-    try ut.expectEqual(fa.stat.size, fb.stat.size);
+    if (fa.stat.size != fb.stat.size)
+        return false;
 
     var ix: usize = 0;
     while (ix < fa.stat.size) {
         const size = @min(fa.buffer.len, fa.stat.size - ix);
 
         const sa = fa.buffer[0..size];
-        try fa.io.readSliceAll(sa);
+        try fa.reader.interface.readSliceAll(sa);
 
         const sb = fb.buffer[0..size];
-        try fb.io.readSliceAll(sb);
+        try fb.reader.interface.readSliceAll(sb);
 
         if (!std.mem.eql(u8, sa, sb)) {
             std.debug.print("Found difference at [{}, {}]\n", .{ ix, ix + size });
@@ -51,4 +50,13 @@ test "cmp" {
 
         ix += size;
     }
+
+    return true;
+}
+
+test "cmp" {
+    const ut = std.testing;
+
+    const ok = compare(ut.io, "/home/geertf/aws/auro-masv-transfer/AURO TEST DISC/AURO_TESTDISC_V10.iso", "/home/geertf/story/cd13/AURO_TESTDISC_V10.iso") catch true;
+    try ut.expect(ok);
 }

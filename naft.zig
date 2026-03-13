@@ -199,7 +199,7 @@ test "Parser.parse_block" {
             const a = aa.allocator();
 
             const Parts = std.ArrayList([]const u8);
-            var parts = Parts{};
+            var parts = Parts.empty;
 
             var cb = struct {
                 a: std.mem.Allocator,

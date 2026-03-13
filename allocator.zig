@@ -6,33 +6,33 @@ const Data = struct {
 
     strings: Strings = undefined,
 
-    _aa: std.heap.ArenaAllocator,
+    aa: std.heap.ArenaAllocator,
 
-    pub fn init(ma: std.mem.Allocator) Data {
-        var options = Data{ ._aa = std.heap.ArenaAllocator.init(ma) };
+    pub fn init(a: std.mem.Allocator) Data {
+        var options = Data{ .aa = std.heap.ArenaAllocator.init(a) };
 
-        options.strings = Strings.init(options._aa.allocator());
+        options.strings = Strings.empty;
 
         return options;
     }
     pub fn deinit(self: Data) void {
         std.debug.print("Data.deinit()\n", .{});
-        self._aa.deinit();
+        self.aa.deinit();
     }
 
     pub fn parse(self: *Data) !void {
         std.debug.print("strings: {}\n", .{self.strings});
-        try self.strings.append("abc");
+        try self.strings.append(self.aa.allocator(), "abc");
     }
 };
 
-pub fn main() !void {
+test "allocator" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    const ma = gpa.allocator();
+    const a = gpa.allocator();
 
-    var data = Data.init(ma);
+    var data = Data.init(a);
     defer data.deinit();
 
     try data.parse();

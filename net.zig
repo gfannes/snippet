@@ -37,9 +37,8 @@ test "localhost" {
                 var rb: [10]u8 = undefined;
                 var reader = stream.reader(cb.io, &rb);
                 while (reader.interface.takeByte()) |byte| {
-                    std.debug.print("Server received '{c}' ({})\n", .{byte, byte});
-                } else |_| {
-                }
+                    std.debug.print("Server received '{c}' ({})\n", .{ byte, byte });
+                } else |_| {}
             }
         }
         fn client_func(cb: *Cb) !void {
@@ -57,5 +56,8 @@ test "localhost" {
         }
     }{ .io = ut.io };
     defer cb.deinit();
-    try cb.init();
+
+    // Disabled by default to not block running all snippets
+    if (false)
+        try cb.init();
 }

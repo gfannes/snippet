@@ -14,10 +14,12 @@ fn read(file: std.Io.File, caption: []const u8) !void {
 test "process" {
     const cmd = [_][]const u8{"rake"};
     const dir_fp = "/home/geertf/am";
+    const dir = try std.Io.Dir.openDirAbsolute(ut.io, dir_fp, .{});
+    defer dir.close(ut.io);
 
     var proc = try std.process.spawn(ut.io, .{
         .argv = &cmd,
-        .cwd = dir_fp,
+        .cwd = .{ .dir = dir },
         .stdout = .pipe,
         .stderr = .pipe,
     });

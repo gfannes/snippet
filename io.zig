@@ -3,7 +3,7 @@ const std = @import("std");
 test "io" {
     const ut = std.testing;
 
-    var al = std.ArrayList(u8){};
+    var al = std.ArrayList(u8).empty;
     defer al.deinit(ut.allocator);
     var w = std.Io.Writer.Allocating.fromArrayList(ut.allocator, &al);
 
