@@ -15,9 +15,7 @@ test "std.fs.Dir.walk" {
     var dir = try std.Io.Dir.cwd().openDir(ut.io, ".", .{ .iterate = true });
     defer dir.close(ut.io);
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const ma = gpa.allocator();
-    var walker = try dir.walk(ma);
+    var walker = try dir.walk(ut.allocator);
     while (try walker.next(ut.io)) |el| {
         std.debug.print("{s} {s} {}\n", .{ el.basename, el.path, el.kind });
     }
